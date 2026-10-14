@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Resource QR Lookup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f5f5f7;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --divider: #d2d2d7;
+    --accent: #0071e3;
+    --accent-press: #0058b0;
+    --radius: 14px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    color-scheme: light;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    height: 100%;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: saturate(180%) blur(16px);
+    -webkit-backdrop-filter: saturate(180%) blur(16px);
+    padding: 20px 20px 12px;
+    border-bottom: 1px solid var(--divider);
+  }
+
+  .manual-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .manual-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .manual-input-wrap {
+    margin-bottom: 18px;
+  }
+
+  #manualUrl {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px;
+    font-family: inherit;
+    border: none;
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    box-sizing: border-box;
+    transition: box-shadow 0.15s ease;
+  }
+
+  #manualUrl:focus {
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.25);
+  }
+
+  .generate-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 12px;
+    margin-top: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .generate-btn:active {
+    background: var(--accent-press);
+  }
+
+  .manual-error {
+    color: #ff3b30;
+    font-size: 13px;
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+  }
+
+  .search-wrap {
+    position: relative;
+  }
+
+  #search {
+    width: 100%;
+    padding: 11px 38px 11px 38px;
+    font-size: 16px;
+    font-family: inherit;
+    border: none;
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: box-shadow 0.15s ease;
+    -webkit-appearance: none;
+  }
+
+  #search::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  #search:focus {
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.25);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+    pointer-events: none;
+  }
+
+  .clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: #c7c7cc;
+    color: #fff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .clear-btn.visible {
+    display: flex;
+  }
+
+  .clear-btn svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  main {
+    flex: 1;
+    padding: 4px 20px 24px;
+    max-width: 640px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .count {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 14px 2px 8px;
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 14px 16px;
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+
+  .item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 16px;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--divider);
+  }
+
+  .item:active {
+    background: #ebebee;
+  }
+
+  .item-text {
+    min-width: 0;
+  }
+
+  .item-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-category {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .chevron {
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    border-top: 1.5px solid #c7c7cc;
+    border-right: 1.5px solid #c7c7cc;
+    transform: rotate(45deg);
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 60px 20px;
+  }
+
+  /* Modal */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 20;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sheet {
+    background: var(--bg);
+    width: 100%;
+    max-width: 480px;
+    border-radius: 20px 20px 0 0;
+    padding: 10px 24px calc(28px + var(--safe-bottom));
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    max-height: 86vh;
+    overflow-y: auto;
+  }
+
+  .overlay.open .sheet {
+    transform: translateY(0);
+  }
+
+  .grabber {
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--divider);
+    margin: 6px auto 18px;
+  }
+
+  .sheet-title {
+    font-size: 19px;
+    font-weight: 600;
+    text-align: center;
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+    padding: 0 8px;
+  }
+
+  .qr-frame {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+
+  #qrcode {
+    line-height: 0;
+  }
+
+  #qrcode img {
+    display: block;
+    border-radius: 6px;
+  }
+
+  .link-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 13px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 12px;
+    box-sizing: border-box;
+  }
+
+  .link-btn:active {
+    background: var(--accent-press);
+  }
+
+  .url-preview {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: 12px;
+    word-break: break-all;
+  }
+
+  .close-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 13px;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 500;
+    font-family: inherit;
+    margin-top: 6px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Resource lookup</h1>
+  <div class="search-wrap">
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input id="search" type="text" placeholder="Search resources" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button class="clear-btn" id="clearBtn" type="button" aria-label="Clear search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <button class="manual-btn" id="manualBtn" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    Paste a link to generate QR
+  </button>
+</header>
+
+<main>
+  <div class="count" id="count"></div>
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty" style="display:none;">No resources match your search.</div>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="sheet-title" id="sheetTitle"></div>
+    <div class="manual-input-wrap" id="manualInputWrap">
+      <input id="manualUrl" type="url" placeholder="Paste or type a link" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="generate-btn" id="generateBtn" type="button">Generate QR</button>
+      <div class="manual-error" id="manualError" style="display:none;">Please enter a valid link.</div>
+    </div>
+    <div class="qr-frame" id="qrFrame">
+      <div id="qrcode"></div>
+    </div>
+    <a class="link-btn" id="openLink" href="#" target="_blank" rel="noopener">Open link</a>
+    <div class="url-preview" id="urlPreview"></div>
+    <button class="close-btn" id="closeBtn">Close</button>
+  </div>
+</div>
+
+<script>
+  // ---------------------------------------------------------------
+  // Hardcode your resources here. Add as many entries as you need.
+  // "category" is optional — leave it as "" if you don't want one shown.
+  // ---------------------------------------------------------------
+  const RESOURCES = [
+    // Battery & Power
+    { title: "About Charge Limit and Optimized Battery Charging on iPhone", category: "Battery & Power", link: "https://support.apple.com/en-my/108055" },
+    { title: "Charge the iPhone battery", category: "Battery & Power", link: "https://support.apple.com/guide/iphone/charge-the-battery-iph63eecc618/ios" },
+    { title: "If your iPhone or iPad gets too hot or too cold", category: "Battery & Power", link: "https://support.apple.com/en-my/118431" },
+
+    // Find My
+    { title: "Use Find My to locate your lost Apple device or AirTag", category: "Find My", link: "https://support.apple.com/en-my/104978" },
+    { title: "How to find your lost iPhone or iPad", category: "Find My", link: "https://support.apple.com/en-my/101593" },
+    { title: "Locate a device in Find Devices on iCloud.com", category: "Find My", link: "https://support.apple.com/guide/icloud/locate-a-device-mmfc0f2442/icloud" },
+
+    // Apple Account & Security
+    { title: "How to use account recovery when you can't reset your Apple Account password", category: "Apple Account", link: "https://support.apple.com/en-my/118574" },
+    { title: "Set up a recovery key for your Apple Account", category: "Apple Account", link: "https://support.apple.com/en-my/109345" },
+    { title: "Set up a recovery contact for your Apple Account", category: "Apple Account", link: "https://support.apple.com/en-my/102641" },
+    { title: "Two-factor authentication for Apple Account", category: "Apple Account", link: "https://support.apple.com/en-my/102660" },
+    { title: "Availability of two-factor authentication for Apple Account", category: "Apple Account", link: "https://support.apple.com/en-my/102333" },
+
+    // Backup & Restore
+    { title: "How to back up your iPhone or iPad with iCloud", category: "Backup & Restore", link: "https://support.apple.com/en-my/108366" },
+    { title: "How to back up your iPhone, iPad, and iPod touch", category: "Backup & Restore", link: "https://support.apple.com/en-my/118426" },
+    { title: "Restore your iPhone, iPad, or iPod touch from a backup", category: "Backup & Restore", link: "https://support.apple.com/en-my/118105" },
+    { title: "View and manage iCloud device backups", category: "Backup & Restore", link: "https://support.apple.com/guide/icloud/view-and-manage-backups-mm122d3ef202/icloud" },
+    { title: "Get temporary iCloud storage when you buy a new iPhone or iPad", category: "Backup & Restore", link: "https://support.apple.com/en-my/104980" },
+
+    // Storage
+    { title: "Manage your iCloud storage on your Apple device", category: "Storage", link: "https://support.apple.com/en-my/108922" },
+
+    // AppleCare & Warranty
+    { title: "Find information about your warranty or AppleCare plan", category: "AppleCare & Warranty", link: "https://support.apple.com/en-my/102607" },
+    { title: "Get AppleCare coverage for your Apple device", category: "AppleCare & Warranty", link: "https://support.apple.com/en-my/104941" },
+    { title: "If you can't find your AppleCare plan", category: "AppleCare & Warranty", link: "https://support.apple.com/en-my/102190" },
+
+    // Switching Devices
+    { title: "Transfer an eSIM and data from your iPhone or iPad to an Android device", category: "Switching Devices", link: "https://support.apple.com/en-my/126058" },
+    { title: "Move from Android to iPhone or iPad", category: "Switching Devices", link: "https://support.apple.com/en-my/118670" },
+    { title: "Move content from Android to iOS", category: "Switching Devices", link: "https://support.apple.com/en-my/104965" },
+
+    // New Device Setup
+    { title: "Use Quick Start to transfer data to a new iPhone or iPad", category: "New Device Setup", link: "https://support.apple.com/en-my/102659" },
+    { title: "Use iCloud to transfer data from your previous device to your new iPhone or iPad", category: "New Device Setup", link: "https://support.apple.com/en-my/108344" },
+    { title: "Transfer data from your previous iOS or iPadOS device to your new iPhone or iPad", category: "New Device Setup", link: "https://support.apple.com/en-my/119967" },
+    { title: "Use the Finder, Apple Devices, or iTunes to transfer data from your previous iOS device", category: "New Device Setup", link: "https://support.apple.com/en-my/120001" },
+
+    // Subscriptions & Billing
+    { title: "If you want to cancel a subscription from Apple", category: "Subscriptions & Billing", link: "https://support.apple.com/en-my/118428" },
+    { title: "Pay with installments using Apple Pay", category: "Subscriptions & Billing", link: "https://support.apple.com/en-my/120477" },
+
+    // Trade-In & Resale
+    { title: "What to do before you sell, give away, or trade in your iPhone or iPad", category: "Trade-In & Resale", link: "https://support.apple.com/en-my/HT201351" },
+
+    // Screen Time & Family
+    { title: "Get started with Screen Time on iPhone", category: "Screen Time & Family", link: "https://support.apple.com/guide/iphone/get-started-with-screen-time-iphbfa595995/ios" },
+    { title: "Set up Screen Time for a child on iPhone", category: "Screen Time & Family", link: "https://support.apple.com/guide/iphone/set-up-screen-time-for-a-child-ipha200da319/ios" },
+    { title: "Set schedules with Screen Time on iPhone", category: "Screen Time & Family", link: "https://support.apple.com/guide/iphone/set-schedules-with-screen-time-iphb0c7313c9/ios" },
+    { title: "Set up parental controls with Family Sharing on iPhone", category: "Screen Time & Family", link: "https://support.apple.com/guide/iphone/set-up-parental-controls-iph00ba7d632/ios" },
+
+    // Wi-Fi & Connectivity
+    { title: "If you can't connect to Wi-Fi on your iPhone or iPad", category: "Wi-Fi & Connectivity", link: "https://support.apple.com/en-my/111786" },
+    { title: "Connect to Wi-Fi on your iPhone or iPad", category: "Wi-Fi & Connectivity", link: "https://support.apple.com/en-my/111107" },
+
+    // Apple Pay & Wallet
+    { title: "Set up Apple Pay", category: "Apple Pay & Wallet", link: "https://support.apple.com/en-my/108398" },
+    { title: "Set up Apple Pay in Wallet on iPhone", category: "Apple Pay & Wallet", link: "https://support.apple.com/guide/iphone/set-up-apple-pay-iph9b7f53382/ios" },
+
+    // Support & Contact
+    { title: "Contact Apple Support", category: "Support & Contact", link: "https://support.apple.com/en-my/106932" },
+    { title: "Contact Apple", category: "Support & Contact", link: "https://support.apple.com/en-my/contact" },
+    { title: "My Support", category: "Support & Contact", link: "https://support.apple.com/en-my/my-support" },
+    { title: "Apple Account – Support Hub", category: "Support & Contact", link: "https://support.apple.com/en-my/apple-account" },
+    { title: "Mac – Support Hub", category: "Support & Contact", link: "https://support.apple.com/en-my/mac" },
+    { title: "Subscriptions and Billing – Support Hub", category: "Support & Contact", link: "https://support.apple.com/en-my/billing" },
+    { title: "iCloud – Support Hub", category: "Support & Contact", link: "https://support.apple.com/icloud" },
+    { title: "Find My – Support Hub", category: "Support & Contact", link: "https://support.apple.com/find-my" },
+
+    // Beta Program
+    { title: "Apple Beta Program Frequently Asked Questions", category: "Beta Program", link: "https://beta.apple.com/faq" },
+  ];
+
+  const listEl = document.getElementById('list');
+  const emptyEl = document.getElementById('empty');
+  const countEl = document.getElementById('count');
+  const searchEl = document.getElementById('search');
+  const clearBtn = document.getElementById('clearBtn');
+  const overlay = document.getElementById('overlay');
+  const sheetTitle = document.getElementById('sheetTitle');
+  const openLink = document.getElementById('openLink');
+  const urlPreview = document.getElementById('urlPreview');
+  const closeBtn = document.getElementById('closeBtn');
+  const qrDiv = document.getElementById('qrcode');
+  const qrFrame = document.getElementById('qrFrame');
+  const manualBtn = document.getElementById('manualBtn');
+  const manualInputWrap = document.getElementById('manualInputWrap');
+  const manualUrl = document.getElementById('manualUrl');
+  const generateBtn = document.getElementById('generateBtn');
+  const manualError = document.getElementById('manualError');
+
+  function render(items) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = items.length ? 'none' : 'block';
+    countEl.textContent = items.length + (items.length === 1 ? ' resource' : ' resources');
+
+    items.forEach(item => {
+      const btn = document.createElement('button');
+      btn.className = 'item';
+      btn.innerHTML = `
+        <div class="item-text">
+          <div class="item-title"></div>
+          ${item.category ? '<div class="item-category"></div>' : ''}
+        </div>
+        <div class="chevron"></div>
+      `;
+      btn.querySelector('.item-title').textContent = item.title;
+      if (item.category) btn.querySelector('.item-category').textContent = item.category;
+      btn.addEventListener('click', () => openSheet(item));
+      listEl.appendChild(btn);
+    });
+  }
+
+  function drawQR(link) {
+    qrDiv.innerHTML = '';
+    new QRCode(qrDiv, {
+      text: link,
+      width: 200,
+      height: 200,
+      colorDark: '#1d1d1f',
+      colorLight: '#f5f5f7',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    openLink.href = link;
+    urlPreview.textContent = link;
+  }
+
+  function openSheet(item) {
+    manualInputWrap.style.display = 'none';
+    qrFrame.style.display = 'flex';
+    openLink.style.display = 'block';
+    urlPreview.style.display = 'block';
+
+    sheetTitle.textContent = item.title;
+    drawQR(item.link);
+
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function openManualSheet() {
+    sheetTitle.textContent = 'Generate QR from link';
+    manualInputWrap.style.display = 'block';
+    qrFrame.style.display = 'none';
+    openLink.style.display = 'none';
+    urlPreview.style.display = 'none';
+    manualError.style.display = 'none';
+    manualUrl.value = '';
+
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => manualUrl.focus(), 300);
+  }
+
+  function normalizeUrl(raw) {
+    const val = raw.trim();
+    if (!val) return null;
+    const withScheme = /^https?:\/\//i.test(val) ? val : `https://${val}`;
+    try {
+      const u = new URL(withScheme);
+      return u.href;
+    } catch {
+      return null;
+    }
+  }
+
+  function handleGenerate() {
+    const normalized = normalizeUrl(manualUrl.value);
+    if (!normalized) {
+      manualError.style.display = 'block';
+      return;
+    }
+    manualError.style.display = 'none';
+    qrFrame.style.display = 'flex';
+    openLink.style.display = 'block';
+    urlPreview.style.display = 'block';
+    drawQR(normalized);
+  }
+
+  manualBtn.addEventListener('click', openManualSheet);
+  generateBtn.addEventListener('click', handleGenerate);
+  manualUrl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleGenerate();
+  });
+
+  function closeSheet() {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeSheet();
+  });
+  closeBtn.addEventListener('click', closeSheet);
+
+  function filterResources(q) {
+    q = q.trim().toLowerCase();
+    return q
+      ? RESOURCES.filter(r =>
+          r.title.toLowerCase().includes(q) ||
+          (r.category && r.category.toLowerCase().includes(q))
+        )
+      : RESOURCES;
+  }
+
+  function updateClearBtn() {
+    clearBtn.classList.toggle('visible', searchEl.value.length > 0);
+  }
+
+  searchEl.addEventListener('input', () => {
+    render(filterResources(searchEl.value));
+    updateClearBtn();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    searchEl.value = '';
+    render(filterResources(''));
+    updateClearBtn();
+    searchEl.focus();
+  });
+
+  // Pre-fill and filter from a URL param, e.g. yoursite.com/?q=icloud
+  const initialQuery = new URLSearchParams(window.location.search).get('q') || '';
+  searchEl.value = initialQuery;
+  render(filterResources(initialQuery));
+  updateClearBtn();
+
+</script>
+
+</body>
+</html>
